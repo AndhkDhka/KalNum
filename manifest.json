@@ -1,6 +1,6 @@
 {
-  "name": "Kalkulator Turunan Numerik",
-  "short_name": "Turunan",
+  "name": "KalNum",
+  "short_name": "KalNum",
   "start_url": "/Kalkulator-Numerik/index.html",
   "scope": "/Kalkulator-Numerik/",
   "display": "standalone",
