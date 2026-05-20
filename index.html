@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalkulator Turunan Numerik — Selisih Maju</title>
+
+  <!-- Dependensi eksternal (sama seperti proyek asal) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.3/math.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ─── CSS Variables (identik dengan proyek asal) ─────────────── */
+    :root {
+      --bg: #e8eaf0;
+      --surface: #e8eaf0;
+      --text-primary: #2d3561;
+      --text-secondary: #8a90b0;
+      --text-dim: #b0b5cc;
+      --shadow-light: #ffffff;
+      --shadow-dark: #c5c8d4;
+      --orange: #f5a623;
+      --orange-dark: #d9891a;
+      --orange-shadow: rgba(245,166,35,0.4);
+      --btn-num: #e8eaf0;
+      --btn-fn: #dfe1ea;
+      --radius-btn: 50%;
+      --btn-size: 64px;
+    }
+    .dark {
+      --bg: #1e2235;
+      --surface: #1e2235;
+      --text-primary: #e8ecf4;
+      --text-secondary: #6b72a0;
+      --text-dim: #3f4565;
+      --shadow-light: #252b45;
+      --shadow-dark: #171b2c;
+      --btn-num: #1e2235;
+      --btn-fn: #232840;
+    }
+
+    /* ─── Reset & Base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 24px 16px 60px;
+      transition: background 0.3s;
+    }
+
+    /* ─── Top Bar ────────────────────────────────────────────────── */
+    .topbar {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .app-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .theme-toggle {
+      display: flex;
+      gap: 6px;
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 4px 6px;
+      box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+    }
+    .theme-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%; border: none; cursor: pointer;
+      background: transparent; color: var(--text-dim);
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .theme-btn.active {
+      background: var(--orange);
+      color: #fff;
+      box-shadow: 0 2px 8px var(--orange-shadow);
+    }
+
+    /* ─── Main Card ──────────────────────────────────────────────── */
+    .calc-card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border-radius: 32px;
+      padding: 28px 24px 24px;
+      box-shadow: 12px 12px 28px var(--shadow-dark), -12px -12px 28px var(--shadow-light);
+      transition: all 0.3s;
+    }
+
+    /* ─── Screen ─────────────────────────────────────────────────── */
+    .screen {
+      padding: 8px 8px 16px;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 4px;
+    }
+    .expr-line {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--text-dim);
+      text-align: right;
+      word-break: break-all;
+      min-height: 18px;
+    }
+    .result-line {
+      font-family: 'DM Mono', monospace;
+      font-size: 36px;
+      font-weight: 500;
+      color: var(--text-primary);
+      text-align: right;
+      letter-spacing: -1px;
+      line-height: 1;
+      transition: font-size 0.15s, color 0.2s;
+      word-break: break-all;
+    }
+    .result-line.small { font-size: 22px; }
+    .result-line.error { color: #e05252; font-size: 14px; line-height: 1.4; }
+
+    /* ─── Selectors Row ───────────────────────────────────────────── */
+    .selector-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .selector-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .select-wrap {
+      flex: 1;
+    }
+    .sel-custom {
+      width: 100%;
+      background: var(--surface);
+      border: none;
+      outline: none;
+      border-radius: 12px;
+      padding: 9px 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      cursor: pointer;
+      box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    /* ─── XH Row ─────────────────────────────────────────────────── */
+    .xh-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding: 0 2px;
+    }
+    .xh-box {
+      flex: 1;
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 8px 12px;
+      box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .xh-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .xh-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      width: 100%;
+    }
+
+    /* ─── Mode Toggle ─────────────────────────────────────────────── */
+    .mode-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .mode-btn {
+      flex: 1;
+      height: 36px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface);
+      box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: var(--orange);
+      color: #fff;
+      box-shadow: 0 4px 12px var(--orange-shadow);
+    }
+
+    /* ─── Tabel Input Panel ──────────────────────────────────────── */
+    .tabel-panel {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .tabel-panel.visible { display: flex; }
+    .tabel-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      padding: 0 2px;
+    }
+    .tabel-scroll {
+      overflow-x: auto;
+    }
+    .tabel-input-grid {
+      display: grid;
+      min-width: 360px;
+    }
+    .tabel-row-header {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .tabel-row-data {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .tabel-cell-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: 'DM Mono', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+    }
+    .tabel-cell-head {
+      font-size: 10px;
+      color: var(--text-secondary);
+      text-align: center;
+      font-weight: 600;
+      padding: 4px 0;
+    }
+    .tabel-cell-input {
+      background: var(--surface);
+      border: none;
+      outline: none;
+      border-radius: 8px;
+      padding: 6px 4px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-primary);
+      text-align: center;
+      box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+      width: 100%;
+    }
+    .tabel-add-btn {
+      width: 100%;
+      height: 32px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface);
+      box-shadow: 3px 3px 8px var(--shadow-dark), -3px -3px 8px var(--shadow-light);
+      transition: all 0.15s;
+    }
+    .tabel-add-btn:active { transform: scale(0.97); }
+
+    /* ─── Fungsi Panel ───────────────────────────────────────────── */
+    .fungsi-panel { display: block; }
+    .fungsi-panel.hidden { display: none; }
+
+    /* ─── Divider ────────────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--shadow-dark), transparent);
+      margin: 0 4px 14px;
+      opacity: 0.6;
+    }
+
+    /* ─── Button Grid (identik asli) ─────────────────────────────── */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 0 2px;
+    }
+    .btn-wide { grid-column: span 2; border-radius: 32px !important; }
+
+    .btn {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 17px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s ease;
+      position: relative;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-num {
+      background: var(--btn-num);
+      color: var(--text-primary);
+      box-shadow: 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);
+    }
+    .btn-num:active, .btn-num.pressed {
+      box-shadow: inset 3px 3px 8px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
+      transform: scale(0.96);
+    }
+    .btn-fn {
+      background: var(--btn-fn);
+      color: var(--text-secondary);
+      font-size: 14px;
+      box-shadow: 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);
+    }
+    .btn-fn:active, .btn-fn.pressed {
+      box-shadow: inset 3px 3px 8px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
+      transform: scale(0.96);
+    }
+    .btn-op {
+      background: var(--orange);
+      color: #fff;
+      box-shadow: 4px 4px 12px var(--orange-shadow), 5px 5px 12px var(--shadow-dark), -2px -2px 8px var(--shadow-light);
+    }
+    .btn-op:active, .btn-op.pressed {
+      background: var(--orange-dark);
+      box-shadow: inset 3px 3px 8px rgba(0,0,0,0.2);
+      transform: scale(0.96);
+    }
+    .btn-wide { aspect-ratio: auto; height: 60px; }
+
+    /* ─── Section Toggle ─────────────────────────────────────────── */
+    .section-toggle {
+      display: flex;
+      gap: 8px;
+      margin: 16px 2px 0;
+    }
+    .seg-btn {
+      flex: 1;
+      height: 38px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface);
+      box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+      transition: all 0.2s;
+    }
+    .seg-btn.active {
+      background: var(--orange);
+      color: #fff;
+      box-shadow: 0 4px 12px var(--orange-shadow);
+    }
+
+    /* ─── Contoh Soal Button ─────────────────────────────────────── */
+    .contoh-btn {
+      width: 100%;
+      height: 38px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface);
+      box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+      margin-top: 10px;
+      transition: all 0.15s;
+    }
+    .contoh-btn:active { transform: scale(0.98); }
+
+    /* ─── Calculate Button ───────────────────────────────────────── */
+    .calc-btn {
+      width: 100%;
+      height: 50px;
+      border-radius: 16px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: var(--orange);
+      color: #fff;
+      box-shadow: 0 6px 18px var(--orange-shadow);
+      margin-top: 14px;
+      transition: all 0.15s;
+    }
+    .calc-btn:active { transform: translateY(1px); box-shadow: 0 3px 10px var(--orange-shadow); }
+
+    /* ─── Result Panel ───────────────────────────────────────────── */
+    .result-panel {
+      margin-top: 14px;
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: inset 4px 4px 10px var(--shadow-dark), inset -4px -4px 10px var(--shadow-light);
+      padding: 16px 18px;
+      display: none;
+    }
+    .result-panel.visible { display: block; }
+    .rp-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+    }
+    .rp-row + .rp-row { border-top: 1px solid var(--shadow-dark); }
+    .rp-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+    .rp-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      max-width: 55%;
+      text-align: right;
+      word-break: break-all;
+    }
+    .rp-value.accent { color: var(--orange); font-size: 15px; }
+
+    /* ─── Langkah Panel ──────────────────────────────────────────── */
+    .langkah-panel {
+      margin-top: 14px;
+      display: none;
+    }
+    .langkah-panel.visible { display: block; }
+    .langkah-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+
+    /* ─── Step Blocks ─────────────────────────────────────────────── */
+    .step-block {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: 4px 4px 12px var(--shadow-dark), -4px -4px 12px var(--shadow-light);
+    }
+    .step-block.step-header {
+      box-shadow: inset 3px 3px 8px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
+    }
+    .step-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .step-no {
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--orange);
+      border-radius: 6px;
+      padding: 2px 8px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .step-judul {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .step-body {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .step-body p { margin-bottom: 6px; }
+    .step-body strong { color: var(--text-primary); }
+    .step-body em { color: var(--orange); font-style: normal; font-weight: 500; }
+    .step-body code {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      background: rgba(0,0,0,0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-primary);
+    }
+    .dark .step-body code { background: rgba(255,255,255,0.07); }
+
+    /* Kotak kalkulasi monospaced */
+    .step-calc {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text-primary);
+      background: var(--surface);
+      box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+      border-radius: 10px;
+      padding: 12px 14px;
+      line-height: 1.8;
+      margin: 8px 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Formula besar */
+    .step-formula-box {
+      background: var(--surface);
+      box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+      margin: 6px 0;
+    }
+    .step-formula-main {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--orange);
+    }
+    .formula-code {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--orange) !important;
+      background: rgba(245,166,35,0.08) !important;
+    }
+
+    /* Hasil akhir */
+    .step-result-final {
+      margin-top: 10px;
+      padding: 12px 14px;
+      background: var(--surface);
+      box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .step-result-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .step-result-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--orange);
+    }
+
+    /* Tabel titik */
+    .step-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+    .step-table th {
+      background: var(--surface);
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 6px 8px;
+      text-align: left;
+      letter-spacing: 0.05em;
+    }
+    .step-table td {
+      padding: 6px 8px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--shadow-dark);
+    }
+    .step-table td strong { color: var(--text-primary); }
+    .cell-accent { color: var(--orange) !important; font-weight: 600; }
+
+    /* Analisis galat */
+    .analisis-galat-box {
+      background: var(--surface);
+      box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    .step-galat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .step-galat-box {
+      background: var(--surface);
+      box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .galat-label { font-size: 10px; color: var(--text-dim); margin-bottom: 4px; }
+    .galat-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .galat-val.accent { color: var(--orange); }
+
+    /* Badge orde galat */
+    .badge-orde {
+      display: inline-block;
+      background: rgba(245,166,35,0.15);
+      color: var(--orange);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    /* Step info rows */
+    .step-info-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .step-info-label {
+      font-weight: 600;
+      color: var(--text-dim);
+      min-width: 70px;
+    }
+    .step-note {
+      font-size: 11px !important;
+      color: var(--text-dim) !important;
+      background: var(--surface);
+      box-shadow: inset 2px 2px 5px var(--shadow-dark), inset -2px -2px 5px var(--shadow-light);
+      border-radius: 8px;
+      padding: 8px 10px !important;
+      margin-top: 6px !important;
+      line-height: 1.5 !important;
+    }
+    .step-note strong { color: var(--text-secondary) !important; }
+    .step-note em { color: var(--orange) !important; }
+
+    /* ─── Graph Panel ────────────────────────────────────────────── */
+    .graph-panel {
+      margin-top: 14px;
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: 4px 4px 14px var(--shadow-dark), -4px -4px 14px var(--shadow-light);
+      padding: 16px;
+      display: none;
+    }
+    .graph-panel.visible { display: block; }
+    .graph-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    canvas#myChart { border-radius: 12px; }
+
+    /* ─── Info Penjelasan ─────────────────────────────────────────── */
+    .info-box {
+      margin-top: 14px;
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: var(--surface);
+      box-shadow: inset 3px 3px 8px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
+      display: none;
+    }
+    .info-box.visible { display: block; }
+    .info-box-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .info-item {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .info-term {
+      font-family: 'DM Mono', monospace;
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 600;
+      min-width: 48px;
+    }
+
+    /* ─── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 440px) {
+      .btn { font-size: 15px; }
+      .btn-grid { gap: 10px; }
+      .result-line { font-size: 30px; }
+      .step-galat-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <span class="app-title">f'(x) · Selisih Maju</span>
+  <div class="theme-toggle">
+    <button class="theme-btn active" id="btnLight" onclick="setTheme(false)" title="Light">☀️</button>
+    <button class="theme-btn" id="btnDark" onclick="setTheme(true)" title="Dark">🌙</button>
+  </div>
+</div>
+
+<!-- Calculator Card -->
+<div class="calc-card">
+
+  <!-- Screen -->
+  <div class="screen">
+    <div class="expr-line" id="exprLine">f(x) =</div>
+    <div class="result-line" id="resultLine">0</div>
+  </div>
+
+  <!-- Pilihan Turunan + Orde -->
+  <div class="selector-row">
+    <div class="select-wrap">
+      <div class="selector-label">Turunan ke-</div>
+      <select class="sel-custom" id="selTurunan" onchange="onTurunanChange()">
+        <option value="1">Pertama (f')</option>
+        <option value="2">Kedua (f'')</option>
+        <option value="3">Ketiga (f''')</option>
+        <option value="4">Keempat (f'''')</option>
+      </select>
+    </div>
+    <div class="select-wrap">
+      <div class="selector-label">Orde / Rumus</div>
+      <select class="sel-custom" id="selOrde" onchange="onOrdeChange()">
+        <!-- Diisi dinamis oleh JS -->
+      </select>
+    </div>
+  </div>
+
+  <!-- Mode input: Fungsi | Tabel -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btnModeFungsi" onclick="setInputMode('fungsi')">Mode f(x)</button>
+    <button class="mode-btn" id="btnModeTabel" onclick="setInputMode('tabel')">Mode Tabel</button>
+  </div>
+
+  <!-- Panel fungsi (default tampil) -->
+  <div class="fungsi-panel" id="fungsiPanel">
+    <!-- x0 dan h -->
+    <div class="xh-row">
+      <div class="xh-box">
+        <span class="xh-label">x₀ (titik)</span>
+        <input class="xh-input" id="xVal" type="number" value="1.3" step="any"/>
+      </div>
+      <div class="xh-box">
+        <span class="xh-label">h (langkah)</span>
+        <input class="xh-input" id="hVal" type="number" value="0.2" step="any"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel tabel data -->
+  <div class="tabel-panel" id="tabelPanel">
+    <div class="tabel-hint">Masukkan titik x dan nilai f(x) secara seragam (uniform spacing):</div>
+    <div class="tabel-scroll">
+      <div class="tabel-input-grid">
+        <div class="tabel-row-header" id="tabelHeader">
+          <!-- diisi JS -->
+        </div>
+        <div class="tabel-row-data" id="tabelRowX">
+          <!-- diisi JS -->
+        </div>
+        <div class="tabel-row-data" id="tabelRowFX">
+          <!-- diisi JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Tombol Keypad (hanya tampil di mode fungsi) -->
+  <div class="fungsi-panel" id="keypadPanel">
+    <div class="btn-grid">
+      <button class="btn btn-fn" onclick="pressAC()">AC</button>
+      <button class="btn btn-fn" onclick="pressSign()">+/−</button>
+      <button class="btn btn-fn" onclick="pressBack()">⌫</button>
+      <button class="btn btn-op" onclick="pressOp('/')">÷</button>
+
+      <button class="btn btn-fn" onclick="pressChar('(')">(</button>
+      <button class="btn btn-fn" onclick="pressChar(')')">)</button>
+      <button class="btn btn-fn" onclick="pressFn('sqrt(')">√</button>
+      <button class="btn btn-op" onclick="pressOp('*')">×</button>
+
+      <button class="btn btn-num" onclick="pressNum('7')">7</button>
+      <button class="btn btn-num" onclick="pressNum('8')">8</button>
+      <button class="btn btn-num" onclick="pressNum('9')">9</button>
+      <button class="btn btn-op" onclick="pressOp('-')">−</button>
+
+      <button class="btn btn-num" onclick="pressNum('4')">4</button>
+      <button class="btn btn-num" onclick="pressNum('5')">5</button>
+      <button class="btn btn-num" onclick="pressNum('6')">6</button>
+      <button class="btn btn-op" onclick="pressOp('+')">+</button>
+
+      <button class="btn btn-num" onclick="pressNum('1')">1</button>
+      <button class="btn btn-num" onclick="pressNum('2')">2</button>
+      <button class="btn btn-num" onclick="pressNum('3')">3</button>
+      <button class="btn btn-fn" onclick="pressFn('sin(')">sin</button>
+
+      <button class="btn btn-num btn-wide" onclick="pressNum('0')">0</button>
+      <button class="btn btn-num" onclick="pressChar('.')">.</button>
+      <button class="btn btn-fn" onclick="pressFn('cos(')">cos</button>
+
+      <button class="btn btn-fn" onclick="pressFn('tan(')">tan</button>
+      <button class="btn btn-fn" onclick="pressFn('log(')">log</button>
+      <button class="btn btn-fn" onclick="pressChar('x')">x</button>
+      <button class="btn btn-fn" onclick="pressChar('^')">^</button>
+    </div>
+  </div>
+
+  <!-- Section Toggle -->
+  <div class="section-toggle">
+    <button class="seg-btn active" id="segDerive" onclick="setSection('derive')">Turunan</button>
+    <button class="seg-btn" id="segInfo"   onclick="setSection('info')">Panduan</button>
+    <button class="seg-btn" id="segGraph"  onclick="setSection('graph')">Grafik</button>
+  </div>
+
+  <!-- Contoh Soal Button -->
+  <button class="contoh-btn" onclick="gunakanContohSoal()">📖 Gunakan Contoh Soal Buku</button>
+
+  <!-- Calculate Button -->
+  <button class="calc-btn" onclick="calculate()">Hitung Turunan →</button>
+
+  <!-- Result Summary Panel -->
+  <div class="result-panel" id="resultPanel">
+    <div class="rp-row">
+      <span class="rp-label">Metode</span>
+      <span class="rp-value" id="rpMetode">—</span>
+    </div>
+    <div class="rp-row">
+      <span class="rp-label">Rumus</span>
+      <span class="rp-value" id="rpRumus" style="font-size:11px">—</span>
+    </div>
+    <div class="rp-row">
+      <span class="rp-label">x₀ = <span id="rpX">—</span>, h = <span id="rpH">—</span></span>
+      <span></span>
+    </div>
+    <div class="rp-row">
+      <span class="rp-label">Orde Galat</span>
+      <span class="rp-value" id="rpOrde">—</span>
+    </div>
+    <div class="rp-row">
+      <span class="rp-label">Hasil Numerik</span>
+      <span class="rp-value accent" id="rpNumerik">—</span>
+    </div>
+    <div class="rp-row">
+      <span class="rp-label">Nilai Eksak</span>
+      <span class="rp-value" id="rpEksak">—</span>
+    </div>
+    <div class="rp-row">
+      <span class="rp-label">Galat Relatif (εₜ)</span>
+      <span class="rp-value" id="rpError">—</span>
+    </div>
+  </div>
+
+  <!-- Langkah Pengerjaan Panel -->
+  <div class="langkah-panel" id="langkahPanel">
+    <div class="langkah-title">📋 Langkah Pengerjaan</div>
+    <div id="langkahContent"></div>
+  </div>
+
+  <!-- Graph Panel -->
+  <div class="graph-panel" id="graphPanel">
+    <div class="graph-title">Grafik f(x) &amp; Turunan Numerik</div>
+    <canvas id="myChart" height="220"></canvas>
+  </div>
+
+  <!-- Info / Panduan Panel -->
+  <div class="info-box" id="infoPanel">
+    <div class="info-box-title">📚 Panduan Singkat Metode Selisih Maju</div>
+    <div class="info-item">
+      <span class="info-term">h</span>
+      <span>Jarak antara dua titik berurutan: h = x₁ − x₀. Semakin kecil h, aproksimasi semakin akurat (hingga batas presisi mesin).</span>
+    </div>
+    <div class="info-item">
+      <span class="info-term">f₀, f₁</span>
+      <span>Nilai fungsi di titik x₀, x₁, x₂, ... yang berurutan dengan jarak h.</span>
+    </div>
+    <div class="info-item">
+      <span class="info-term">Δf</span>
+      <span>Operator beda maju: Δf₀ = f₁ − f₀. Turunan adalah aproksimasi dari Δf/h.</span>
+    </div>
+    <div class="info-item">
+      <span class="info-term">O(h)</span>
+      <span>Galat berbanding lurus dengan h. Memangkas h menjadi ½ → galat ≈ ½.</span>
+    </div>
+    <div class="info-item">
+      <span class="info-term">O(h²)</span>
+      <span>Galat berbanding dengan h². Memangkas h → ½ → galat ≈ ¼. <strong>Lebih teliti.</strong></span>
+    </div>
+    <div class="info-item">
+      <span class="info-term">Kapan?</span>
+      <span>Selisih maju digunakan ketika data hanya tersedia di sebelah kanan x₀, atau saat bekerja di ujung kiri tabel data diskrit.</span>
+    </div>
+  </div>
+
+</div><!-- /calc-card -->
+
+<!-- ─── Modul JS ──────────────────────────────────────────────────────────── -->
+<script src="rumus.js"></script>
+<script src="validator.js"></script>
+<script src="langkah.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   app.js — Logika Utama Kalkulator
+   Mahasiswa TI Semester 4: setiap bagian sudah diberi komentar jelas
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+"use strict";
+
+// ─── State Aplikasi ──────────────────────────────────────────────────────────
+let expr       = '';         // ekspresi fungsi f(x)
+let inputMode  = 'fungsi';   // 'fungsi' | 'tabel'
+let section    = 'derive';   // 'derive' | 'info' | 'graph'
+let chartInst  = null;       // instance Chart.js
+
+// ─── Mapping turunan ke daftar formula yang tersedia ────────────────────────
+// Saat user memilih "Turunan ke-2", dropdown orde hanya menampilkan formula turunan kedua
+const TURUNAN_ORDE_MAP = {
+  1: [
+    { key: 'd1_oh',  label: 'Orde O(h) — 2 titik'  },
+    { key: 'd1_oh2', label: 'Orde O(h²) — 3 titik' },
+  ],
+  2: [
+    { key: 'd2_oh',  label: 'Orde O(h) — 3 titik'  },
+    { key: 'd2_oh2', label: 'Orde O(h²) — 4 titik' },
+  ],
+  3: [
+    { key: 'd3_oh',  label: 'Orde O(h) — 4 titik'  },
+  ],
+  4: [
+    { key: 'd4_oh',  label: 'Orde O(h) — 5 titik'  },
+  ],
+};
+
+// ─── Inisialisasi saat halaman dimuat ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  onTurunanChange();    // isi dropdown orde
+  buildTabelInput(7);   // buat tabel input 7 kolom (default)
+  updateDisplay();
+});
+
+// ─── Tema ─────────────────────────────────────────────────────────────────────
+function setTheme(dark) {
+  document.body.classList.toggle('dark', dark);
+  document.getElementById('btnLight').classList.toggle('active', !dark);
+  document.getElementById('btnDark').classList.toggle('active', dark);
+  if (chartInst) renderChart();
+}
+
+// ─── Section (Turunan / Panduan / Grafik) ────────────────────────────────────
+function setSection(s) {
+  section = s;
+  ['derive','info','graph'].forEach(id => {
+    document.getElementById('seg' + id.charAt(0).toUpperCase() + id.slice(1))
+      .classList.toggle('active', id === s);
+  });
+  // Sembunyikan semua panel output
+  document.getElementById('resultPanel').classList.remove('visible');
+  document.getElementById('langkahPanel').classList.remove('visible');
+  document.getElementById('graphPanel').classList.remove('visible');
+  document.getElementById('infoPanel').classList.remove('visible');
+
+  // Tampilkan panduan langsung jika pilih info
+  if (s === 'info') {
+    document.getElementById('infoPanel').classList.add('visible');
+  }
+}
+
+// ─── Mode Input (Fungsi / Tabel) ──────────────────────────────────────────────
+function setInputMode(mode) {
+  inputMode = mode;
+  document.getElementById('btnModeFungsi').classList.toggle('active', mode === 'fungsi');
+  document.getElementById('btnModeTabel').classList.toggle('active',  mode === 'tabel');
+
+  // Tampil/sembunyi panel fungsi
+  document.getElementById('fungsiPanel').classList.toggle('hidden', mode !== 'fungsi');
+  document.getElementById('keypadPanel').classList.toggle('hidden', mode !== 'fungsi');
+  document.getElementById('tabelPanel').classList.toggle('visible', mode === 'tabel');
+
+  // Reset output
+  document.getElementById('resultPanel').classList.remove('visible');
+  document.getElementById('langkahPanel').classList.remove('visible');
+
+  if (mode === 'tabel') {
+    // Di mode tabel, field h tersembunyi (dihitung otomatis)
+    const fn = document.getElementById('fungsiPanel');
+    fn.classList.add('hidden');
+  }
+}
+
+// ─── Dropdown: Saat turunan ke- berubah ──────────────────────────────────────
+function onTurunanChange() {
+  const turunanVal = parseInt(document.getElementById('selTurunan').value);
+  const ordeList   = TURUNAN_ORDE_MAP[turunanVal] || [];
+  const selOrde    = document.getElementById('selOrde');
+
+  selOrde.innerHTML = '';
+  ordeList.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value       = item.key;
+    opt.textContent = item.label;
+    selOrde.appendChild(opt);
+  });
+
+  // Update tabel input — jumlah kolom sesuai minPts formula default
+  const defaultKey = ordeList[0]?.key;
+  if (defaultKey) {
+    buildTabelInput(Math.max(FORMULAS[defaultKey].minPts, 7));
+  }
+}
+
+function onOrdeChange() {
+  const key = document.getElementById('selOrde').value;
+  if (key && FORMULAS[key]) {
+    buildTabelInput(Math.max(FORMULAS[key].minPts, 7));
+  }
+}
+
+// ─── Bangun Tabel Input Dinamis ───────────────────────────────────────────────
+function buildTabelInput(nCols) {
+  const header  = document.getElementById('tabelHeader');
+  const rowX    = document.getElementById('tabelRowX');
+  const rowFX   = document.getElementById('tabelRowFX');
+
+  // Baca nilai lama jika ada
+  const oldX  = Array.from(rowX.querySelectorAll('input')).map(i => i.value);
+  const oldFX = Array.from(rowFX.querySelectorAll('input')).map(i => i.value);
+
+  header.style.gridTemplateColumns  = `60px repeat(${nCols}, 1fr)`;
+  rowX.style.gridTemplateColumns    = `60px repeat(${nCols}, 1fr)`;
+  rowFX.style.gridTemplateColumns   = `60px repeat(${nCols}, 1fr)`;
+
+  // Header
+  header.innerHTML = `<div class="tabel-cell-head"></div>`;
+  for (let i = 0; i < nCols; i++) {
+    header.innerHTML += `<div class="tabel-cell-head">x<sub>${i}</sub></div>`;
+  }
+
+  // Baris x
+  rowX.innerHTML = `<div class="tabel-cell-label">x<sub>i</sub></div>`;
+  for (let i = 0; i < nCols; i++) {
+    rowX.innerHTML += `<input class="tabel-cell-input" id="tx_${i}" type="number" step="any" value="${oldX[i] || ''}" placeholder="x${i}">`;
+  }
+
+  // Baris f(x)
+  rowFX.innerHTML = `<div class="tabel-cell-label">f(x<sub>i</sub>)</div>`;
+  for (let i = 0; i < nCols; i++) {
+    rowFX.innerHTML += `<input class="tabel-cell-input" id="tfx_${i}" type="number" step="any" value="${oldFX[i] || ''}" placeholder="f${i}">`;
+  }
+}
+
+// ─── Baca nilai tabel dari input ─────────────────────────────────────────────
+function bacaTabelData() {
+  const rowX   = document.getElementById('tabelRowX');
+  const rowFX  = document.getElementById('tabelRowFX');
+  const inpX   = Array.from(rowX.querySelectorAll('input'));
+  const inpFX  = Array.from(rowFX.querySelectorAll('input'));
+
+  const xArr  = inpX.filter(i => i.value.trim() !== '').map(i => parseFloat(i.value));
+  const fxArr = inpFX.filter(i => i.value.trim() !== '').map(i => parseFloat(i.value));
+
+  return { xArr, fxArr };
+}
+
+// ─── Contoh Soal Buku (Bab 7) ────────────────────────────────────────────────
+function gunakanContohSoal() {
+  // Data dari PDF: f(x) ≈ e^x, x0=1.3, h=0.2
+  const { xArr, fxArr } = CONTOH_SOAL;
+
+  // Paksa mode tabel
+  setInputMode('tabel');
+  buildTabelInput(xArr.length);
+
+  // Isi tabel
+  xArr.forEach((v, i) => {
+    const inp = document.getElementById(`tx_${i}`);
+    if (inp) inp.value = v;
+  });
+  fxArr.forEach((v, i) => {
+    const inp = document.getElementById(`tfx_${i}`);
+    if (inp) inp.value = v;
+  });
+
+  // Default ke turunan pertama O(h²) — sesuai contoh buku
+  document.getElementById('selTurunan').value = '1';
+  onTurunanChange();
+  document.getElementById('selOrde').value = 'd1_oh2';
+
+  // Animasi tombol mode tabel
+  document.getElementById('btnModeTabel').classList.add('active');
+  document.getElementById('btnModeFungsi').classList.remove('active');
+
+  flashInfo('Contoh soal buku dimuat! Klik "Hitung Turunan" →');
+}
+
+function flashInfo(msg) {
+  const rl = document.getElementById('resultLine');
+  rl.textContent = msg;
+  rl.className = 'result-line small';
+  const el = document.getElementById('exprLine');
+  el.textContent = 'Contoh Soal Bab 7';
+}
+
+// ─── Display Fungsi ───────────────────────────────────────────────────────────
+function updateDisplay() {
+  if (inputMode !== 'fungsi') return;
+  const el = document.getElementById('exprLine');
+  const rl = document.getElementById('resultLine');
+  el.textContent = 'f(x) = ' + (expr || '…');
+  try {
+    const x = parseFloat(document.getElementById('xVal')?.value) || 0;
+    const val = math.evaluate(expr || '0', { x });
+    const formatted = fmtNum(val);
+    rl.textContent = formatted;
+    rl.className = 'result-line' + (formatted.length > 10 ? ' small' : '');
+  } catch {
+    rl.textContent = '…';
+    rl.className = 'result-line';
+  }
+}
+
+function fmtNum(n, digits = 6) {
+  if (typeof n !== 'number' || isNaN(n)) return 'Error';
+  const abs = Math.abs(n);
+  if (abs >= 1e10 || (abs < 1e-5 && n !== 0)) return n.toExponential(digits);
+  return parseFloat(n.toPrecision(8)).toString();
+}
+
+// ─── Keypad Handlers ─────────────────────────────────────────────────────────
+function pressNum(d)  { expr += d; updateDisplay(); }
+function pressChar(c) { expr += c; updateDisplay(); }
+function pressOp(op)  { expr += op; updateDisplay(); }
+function pressFn(fn)  { expr += fn; updateDisplay(); }
+
+function pressBack() { expr = expr.slice(0, -1); updateDisplay(); }
+
+function pressAC() {
+  expr = '';
+  document.getElementById('exprLine').textContent = 'f(x) =';
+  const rl = document.getElementById('resultLine');
+  rl.textContent = '0';
+  rl.className = 'result-line';
+  document.getElementById('resultPanel').classList.remove('visible');
+  document.getElementById('langkahPanel').classList.remove('visible');
+  document.getElementById('graphPanel').classList.remove('visible');
+}
+
+function pressSign() {
+  if (!expr) return;
+  if (expr.startsWith('-')) expr = expr.slice(1);
+  else expr = '-(' + expr + ')';
+  updateDisplay();
+}
+
+// ─── Perhitungan Utama ────────────────────────────────────────────────────────
+function calculate() {
+  const formulaKey = document.getElementById('selOrde').value;
+  const formula    = FORMULAS[formulaKey];
+  if (!formula) { flashError('Pilih rumus terlebih dahulu.'); return; }
+
+  let x0, h, xArr, fArr, hasilEksak = null;
+
+  // ── Mode Fungsi ────────────────────────────────────────────────
+  if (inputMode === 'fungsi') {
+    x0 = parseFloat(document.getElementById('xVal').value);
+    h  = parseFloat(document.getElementById('hVal').value);
+
+    const val = Validator.validasiFungsi(expr, x0, h, formula);
+    if (!val.valid) { flashError(val.pesan); return; }
+
+    // Bangun titik dari fungsi
+    xArr = [];
+    fArr = [];
+    for (let i = 0; i < formula.minPts; i++) {
+      const xi = x0 + i * h;
+      xArr.push(xi);
+      try {
+        fArr.push(math.evaluate(expr, { x: xi }));
+      } catch(e) {
+        flashError(`Gagal mengevaluasi f(${fmtNum(xi)}): ${e.message}`);
+        return;
+      }
+    }
+
+    // Hitung nilai eksak menggunakan turunan analitik math.js
+    try {
+      const node  = math.parse(expr);
+      // Turunkan sesuai orde
+      let deriv = node;
+      for (let i = 0; i < formula.order; i++) {
+        deriv = math.derivative(deriv, 'x');
+      }
+      hasilEksak = deriv.evaluate({ x: x0 });
+    } catch { hasilEksak = null; }
+
+  // ── Mode Tabel ─────────────────────────────────────────────────
+  } else {
+    const data = bacaTabelData();
+    const val  = Validator.validasiTabel(data.xArr, data.fxArr, formula);
+    if (!val.valid) { flashError(val.pesan); return; }
+
+    x0   = data.xArr[0];
+    h    = val.h;
+    xArr = data.xArr.slice(0, formula.minPts);
+    fArr = data.fxArr.slice(0, formula.minPts);
+    // Tidak ada nilai eksak di mode tabel
+    hasilEksak = null;
+  }
+
+  // ── Hitung hasil numerik ───────────────────────────────────────
+  let hasil;
+  try {
+    hasil = formula.hitung(fArr, h);
+  } catch(e) {
+    flashError('Gagal menghitung: ' + e.message);
+    return;
+  }
+
+  if (!isFinite(hasil)) {
+    flashError('Hasil tidak terdefinisi (overflow/NaN). Periksa nilai h dan data.');
+    return;
+  }
+
+  // ── Update layar utama ─────────────────────────────────────────
+  const rl = document.getElementById('resultLine');
+  rl.textContent = fmtNum(hasil);
+  rl.className   = 'result-line' + (fmtNum(hasil).length > 10 ? ' small' : '');
+  document.getElementById('exprLine').textContent =
+    inputMode === 'fungsi' ? `f(x) = ${expr}` : `Mode Tabel — x₀ = ${x0}`;
+
+  // ── Isi result summary panel ───────────────────────────────────
+  const galat = hasilEksak !== null && hasilEksak !== 0
+    ? Math.abs((hasil - hasilEksak) / hasilEksak) * 100 : null;
+
+  document.getElementById('rpMetode').textContent  = 'Selisih Maju (Forward Difference)';
+  document.getElementById('rpRumus').textContent   = formula.notasi;
+  document.getElementById('rpX').textContent       = fmtNum(x0);
+  document.getElementById('rpH').textContent       = fmtNum(h);
+  document.getElementById('rpOrde').textContent    = formula.orde_galat;
+  document.getElementById('rpNumerik').textContent = fmtNum(hasil);
+  document.getElementById('rpEksak').textContent   = hasilEksak !== null ? fmtNum(hasilEksak) : 'N/A (mode tabel)';
+  document.getElementById('rpError').textContent   = galat !== null ? galat.toExponential(4) + ' %' : '—';
+
+  // ── Render langkah-langkah ─────────────────────────────────────
+  const langkahHTML = LangkahRenderer.render({
+    mode:      inputMode,
+    formula,
+    formulaKey,
+    x0,
+    h,
+    xArr,
+    fArr,
+    hasil,
+    hasilEksak,
+    exprStr:   expr,
+  });
+  document.getElementById('langkahContent').innerHTML = langkahHTML;
+
+  // ── Tampilkan panel sesuai section ─────────────────────────────
+  document.getElementById('infoPanel').classList.remove('visible');
+  document.getElementById('graphPanel').classList.remove('visible');
+
+  if (section === 'derive') {
+    document.getElementById('resultPanel').classList.add('visible');
+    document.getElementById('langkahPanel').classList.add('visible');
+    document.getElementById('graphPanel').classList.remove('visible');
+  } else if (section === 'graph') {
+    document.getElementById('resultPanel').classList.remove('visible');
+    document.getElementById('langkahPanel').classList.remove('visible');
+    if (inputMode === 'fungsi') {
+      renderChart(x0, h, formula);
+      document.getElementById('graphPanel').classList.add('visible');
+    } else {
+      // Grafik mode tabel
+      renderChartTabel(xArr, fArr, x0, formula);
+      document.getElementById('graphPanel').classList.add('visible');
+    }
+  } else {
+    // Info section — tampilkan ringkasan + panduan
+    document.getElementById('resultPanel').classList.add('visible');
+    document.getElementById('infoPanel').classList.add('visible');
+  }
+}
+
+function flashError(msg) {
+  const rl = document.getElementById('resultLine');
+  rl.textContent = msg;
+  rl.className   = 'result-line error';
+}
+
+// ─── Chart.js: mode fungsi ────────────────────────────────────────────────────
+function renderChart(cx, h, formula) {
+  const pts = 80;
+  const lo  = cx - 3, hi = cx + 3;
+  const step = (hi - lo) / pts;
+
+  const labels = [], fVals = [], dVals = [];
+
+  for (let i = 0; i <= pts; i++) {
+    const xi = lo + i * step;
+    labels.push(xi.toFixed(2));
+    try {
+      fVals.push(math.evaluate(expr, { x: xi }));
+      // Hitung dengan formula saat ini (gunakan h kecil untuk kurva halus)
+      const hChart = Math.max(h, 0.001);
+      if (xi + (formula.minPts - 1) * hChart <= hi + 1) {
+        const fPts = [];
+        for (let k = 0; k < formula.minPts; k++) {
+          fPts.push(math.evaluate(expr, { x: xi + k * hChart }));
+        }
+        dVals.push(formula.hitung(fPts, hChart));
+      } else {
+        dVals.push(null);
+      }
+    } catch {
+      fVals.push(null);
+      dVals.push(null);
+    }
+  }
+  buatChart(labels, fVals, dVals);
+}
+
+function renderChartTabel(xArr, fArr, x0, formula) {
+  // Grafik berdasarkan titik tabel
+  const labels = xArr.map(x => x.toFixed(3));
+  const fVals  = fArr.slice();
+  const dVals  = xArr.map((_, i) => {
+    const h = xArr[1] - xArr[0];
+    if (i + formula.minPts - 1 < fArr.length) {
+      return formula.hitung(fArr.slice(i, i + formula.minPts), h);
+    }
+    return null;
+  });
+  buatChart(labels, fVals, dVals);
+}
+
+function buatChart(labels, fVals, dVals) {
+  const isDark    = document.body.classList.contains('dark');
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const tickColor = isDark ? '#6b72a0' : '#b0b5cc';
+
+  if (chartInst) chartInst.destroy();
+  const ctx = document.getElementById('myChart').getContext('2d');
+
+  chartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'f(x)',
+          data: fVals,
+          borderColor: '#f5a623',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: false
+        },
+        {
+          label: "Turunan Numerik",
+          data: dVals,
+          borderColor: '#5b8cff',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: false,
+          borderDash: [5, 3]
+        }
+      ]
+    },
+    options: {
+      animation: { duration: 500 },
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: tickColor, font: { family: 'DM Sans', size: 11 }, boxWidth: 24 }
+        },
+        tooltip: {
+          backgroundColor: isDark ? '#252b45' : '#fff',
+          titleColor: isDark ? '#e8ecf4' : '#2d3561',
+          bodyColor: isDark ? '#6b72a0' : '#8a90b0',
+          borderColor: isDark ? '#3f4565' : '#e0e2ec',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(6) ?? '—'}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: tickColor, font: { size: 10 }, maxTicksLimit: 6 },
+          grid:  { color: gridColor }
+        },
+        y: {
+          ticks: { color: tickColor, font: { size: 10 }, maxTicksLimit: 5 },
+          grid:  { color: gridColor }
+        }
+      }
+    }
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+updateDisplay();
+</script>
+
+</body>
+</html>
