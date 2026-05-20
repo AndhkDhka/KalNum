@@ -1,20 +1,20 @@
 {
   "name": "KalNum",
   "short_name": "KalNum",
-  "start_url": "/Kalkulator-Numerik/index.html",
-  "scope": "/Kalkulator-Numerik/",
+  "start_url": "/KalNum/",
+  "scope": "/KalNum/",
   "display": "standalone",
   "background_color": "#1d4ed8",
   "theme_color": "#1d4ed8",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/Kalkulator-Numerik/icon-192.jpeg",
+      "src": "/KalNum/icon-192.jpeg",
       "sizes": "192x192",
       "type": "image/jpeg"
     },
     {
-      "src": "/Kalkulator-Numerik/icon-512.jpeg",
+      "src": "/KalNum/icon-512.jpeg",
       "sizes": "512x512",
       "type": "image/jpeg"
     }
